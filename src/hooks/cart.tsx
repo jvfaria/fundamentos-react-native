@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 
 import AsyncStorage from '@react-native-community/async-storage';
+import { Alert } from 'react-native';
 
 interface Product {
   id: string;
@@ -30,23 +31,74 @@ const CartProvider: React.FC = ({ children }) => {
 
   useEffect(() => {
     async function loadProducts(): Promise<void> {
-      // TODO LOAD ITEMS FROM ASYNC STORAGE
+      const productsLoaded = await AsyncStorage.getItem('@products');
+
+      if (productsLoaded) {
+        setProducts([...JSON.parse(productsLoaded)]);
+      }
     }
 
     loadProducts();
   }, []);
 
-  const addToCart = useCallback(async product => {
-    // TODO ADD A NEW ITEM TO THE CART
-  }, []);
+  const addToCart = useCallback(
+    async product => {
+      const newProduct: Product = {
+        ...product,
+        quantity: 1,
+      };
 
-  const increment = useCallback(async id => {
-    // TODO INCREMENTS A PRODUCT QUANTITY IN THE CART
-  }, []);
+      if (products.find(p => p.id === product.id)) {
+        Alert.alert('Product already added to the cart !');
+        return;
+      }
 
-  const decrement = useCallback(async id => {
-    // TODO DECREMENTS A PRODUCT QUANTITY IN THE CART
-  }, []);
+      setProducts(p => p.concat(newProduct));
+      const productsClone = products.slice();
+
+      await AsyncStorage.setItem(`@products`, JSON.stringify(productsClone));
+    },
+    [products],
+  );
+
+  const increment = useCallback(
+    async id => {
+      const productsClone = products.slice();
+      const product = productsClone.find(p => p.id === id);
+
+      if (product) {
+        product.quantity += 1;
+
+        setProducts(productsClone);
+        AsyncStorage.setItem(`@products`, JSON.stringify(productsClone));
+        return;
+      }
+
+      Alert.alert('An error has occured, try again.');
+    },
+    [products],
+  );
+
+  const decrement = useCallback(
+    async id => {
+      const productsClone = products.slice();
+      const product = productsClone.find(p => p.id === id);
+
+      if (product) {
+        if (product.quantity === 0) {
+          return;
+        }
+        product.quantity -= 1;
+        setProducts(productsClone);
+
+        AsyncStorage.setItem(`@products`, JSON.stringify(productsClone));
+        return;
+      }
+
+      Alert.alert('An error has occured, try again.');
+    },
+    [products],
+  );
 
   const value = React.useMemo(
     () => ({ addToCart, increment, decrement, products }),
